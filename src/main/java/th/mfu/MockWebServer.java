@@ -13,52 +13,62 @@ public class MockWebServer implements Runnable {
 
     @Override
     public void run() {
+        //  Start the server socket inside a try block
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
+            System.out.println("Mock Web Server running on port " + port + "...");
 
-        // TODO Create a server socket bound to specified port
+            while (true) {
+                //  Accept incoming client connection
+                try (
+                    Socket clientSocket = serverSocket.accept();
+                    //  Create input/output streams
+                    BufferedReader input = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                    PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)
+                ) {
+                    //  Read client request (optional: for debug)
+                    String line;
+                    while ((line = input.readLine()) != null && !line.isEmpty()) {
+                        System.out.println("Request: " + line);
+                    }
 
-        System.out.println("Mock Web Server running on port " + port + "...");
+                    //  Prepare and send HTTP response
+                    String response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n"
+                            + "<html><body>Hello, Web! on Port " + port + "</body></html>";
+                    out.println(response);
 
-        while (true) {
-            // TODO Accept incoming client connections
+                    //  Resources are auto-closed via try-with-resources
 
-            // TODO Create input and output streams for the client socket
+                } catch (IOException e) {
+                    System.err.println("Error handling client: " + e.getMessage());
+                }
+            }
 
-            // TODO: Read the request from the client using BufferedReader
-
-            // TODO: send a response to the client
-            String response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n"
-                    + "<html><body>Hello, Web! on Port " + port + "</body></html>";
-
-            // TODO: Close the client socket
-
+        } catch (IOException e) {
+            System.err.println("Failed to start server on port " + port + ": " + e.getMessage());
         }
-
     }
 
     public static void main(String[] args) {
+        //  Start two server threads
         Thread server1 = new Thread(new MockWebServer(8080));
-        server1.start();
-
         Thread server2 = new Thread(new MockWebServer(8081));
+
+        server1.start();
         server2.start();
 
-        // type any key to stop the server
-        // Wait for any key press to stop the mock web server
-        System.out.println("Press any key to stop the server...");
+        System.out.println("Press ENTER to stop the servers...");
         try {
             System.in.read();
 
-            // Stop the mock web server
-            server1.stop();
-            server1.interrupt();
-            server2.stop();
-            server2.interrupt();
-            System.out.println("Mock web server stopped.");
+            //  Graceful shutdown suggestion (servers will stop when JVM exits)
+            System.out.println("Stopping servers...");
+            // Note: Threads will keep running as there’s no exit condition in the run() loop.
+            // You would need a shutdown flag or socket close to actually stop them.
+
             System.exit(0);
+
         } catch (IOException e) {
             e.printStackTrace();
         }
-
     }
-
 }
